@@ -4,26 +4,26 @@ VERSION = '0.2.0'
 PACKAGE = 'ticketreminder'
 
 setup(
-    name = 'TicketReminderPlugin',
-    version = VERSION,
-    description = "Allows to configure reminders for tickets in Trac.",
-    author = 'Mitar',
-    author_email = 'mitar.trac@tnode.com',
-    url = 'http://mitar.tnode.com/',
-    keywords = 'trac plugin',
-    license = "AGPLv3",
-    packages = [PACKAGE],
-    include_package_data = True,
-    package_data = {
+    name='TicketReminderPlugin',
+    version=VERSION,
+    description="Allows to configure reminders for tickets in Trac.",
+    author='Giuseppe Acito',
+    author_email='giuseppe.acito@gmail.com',
+    url='http://mitar.tnode.com/',
+    keywords='trac plugin',
+    license="AGPLv3",
+    packages=[PACKAGE],
+    include_package_data=True,
+    package_data={
         PACKAGE: [
             'htdocs/css/*.css',
             'htdocs/js/*.js',
             'templates/*.html',
         ],
     },
-    install_requires = [],
-    zip_safe = False,
-    entry_points = {
-        'trac.plugins': '%s = %s' % (PACKAGE, PACKAGE),
+    install_requires=[],
+    zip_safe=False,
+    entry_points={
+        'trac.plugins': '%s=%s' % (PACKAGE, PACKAGE),
     },
 )

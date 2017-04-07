@@ -2,16 +2,20 @@ import re
 
 from pkg_resources import resource_filename
 
-from trac.core import *
+from trac.core import *  # noqa
 from trac.admin import IAdminCommandProvider
 from trac.attachment import AttachmentModule
 from trac.mimeview import Context
 from trac.db import DatabaseManager
 from trac.env import IEnvironmentSetupParticipant
 from trac.web import ITemplateStreamFilter, IRequestHandler, IRequestFilter
-from trac.web.chrome import ITemplateProvider, add_stylesheet, add_link, add_ctxtnav, INavigationContributor, add_warning, add_script, Chrome, add_notice
+from trac.web.chrome import ITemplateProvider, add_stylesheet, add_link
+from trac.web.chrome import add_ctxtnav, INavigationContributor, add_warning
+from trac.web.chrome import add_script, Chrome, add_notice
 from trac.wiki import format_to_oneliner
-from trac.util.datefmt import pretty_timedelta, to_datetime, format_date, get_date_format_hint, format_datetime, parse_date, _time_intervals, to_utimestamp
+from trac.util.datefmt import pretty_timedelta, to_datetime, format_date
+from trac.util.datefmt import get_date_format_hint, format_datetime
+from trac.util.datefmt import _time_intervals, to_utimestamp, parse_date
 from trac.util.text import exception_to_unicode
 from trac.util.translation import _
 from trac.util import get_reporter_id
@@ -26,12 +30,16 @@ from genshi.filters import Transformer
 
 import db_default
 
+
 class TicketReminder(Component):
     """
     With this component you can configure reminders for tickets in Trac.
     """
 
-    implements(IEnvironmentSetupParticipant, ITemplateStreamFilter, ITemplateProvider, IRequestHandler, IRequestFilter, INavigationContributor, IPermissionRequestor, ITicketChangeListener, IAdminCommandProvider)
+    implements(IEnvironmentSetupParticipant, ITemplateStreamFilter,
+               ITemplateProvider, IRequestHandler, IRequestFilter,
+               INavigationContributor, IPermissionRequestor,
+               ITicketChangeListener, IAdminCommandProvider)
 
     # IEnvironmentSetupParticipant methods
 
@@ -42,10 +50,14 @@ class TicketReminder(Component):
         self.upgrade_environment(self.env.get_db_cnx())
 
     def environment_needs_upgrade(self, db):
-        """Called when Trac checks whether the environment needs to be upgraded."""
+        """
+        Called when Trac checks whether the environment
+        needs to be upgraded.
+        """
 
         cursor = db.cursor()
-        cursor.execute("SELECT value FROM system WHERE name=%s", (db_default.name,))
+        cursor.execute("SELECT value FROM system WHERE name=%s",
+                       (db_default.name,))
         value = cursor.fetchone()
         if not value:
             self.found_db_version = 0
@@ -68,13 +80,17 @@ class TicketReminder(Component):
                 cursor.execute(stmt)
 
         if not self.found_db_version:
-            cursor.execute("INSERT INTO system (name, value) VALUES (%s, %s)", (db_default.name, db_default.version))
+            cursor.execute("INSERT INTO system (name, value) VALUES (%s, %s)",
+                           (db_default.name, db_default.version))
         else:
-            cursor.execute("UPDATE system SET value=%s WHERE name=%s", (db_default.version, db_default.name))
+            cursor.execute("UPDATE system SET value=%s WHERE name=%s",
+                           (db_default.version, db_default.name))
 
         db.commit()
 
-        self.log.info('Upgraded %s schema version from %d to %d', db_default.name, self.found_db_version, db_default.version)
+        self.log.info('Upgraded %s schema version from %d to %d',
+                      db_default.name, self.found_db_version,
+                      db_default.version)
 
     # IRequestFilter methods
     def pre_process_request(self, req, handler):
@@ -98,7 +114,8 @@ class TicketReminder(Component):
         """Return whether the handler wants to process the given request."""
 
         match = re.match(r'/ticket/([0-9]+)$', req.path_info)
-        if match and req.args.get('action') in ["addreminder", "deletereminder"]:
+        if match and req.args.get('action') in ["addreminder",
+                                                "deletereminder"]:
             req.args['id'] = match.group(1)
             return True
 
@@ -111,8 +128,10 @@ class TicketReminder(Component):
 
         req.perm('ticket', id).require('TICKET_VIEW')
 
-        if 'TICKET_REMINDER_MODIFY' not in req.perm and 'TICKET_ADMIN' not in req.perm:
-            raise PermissionError('TICKET_REMINDER_MODIFY', req.perm._resource, self.env)
+        if 'TICKET_REMINDER_MODIFY' not in req.perm \
+           and 'TICKET_ADMIN' not in req.perm:
+            raise PermissionError('TICKET_REMINDER_MODIFY',
+                                  req.perm._resource, self.env)
 
         ticket = Ticket(self.env, id)
 
@@ -122,7 +141,8 @@ class TicketReminder(Component):
         ticket_name = get_resource_name(self.env, ticket.resource)
         ticket_url = get_resource_url(self.env, ticket.resource, req.href)
         add_link(req, 'up', ticket_url, ticket_name)
-        add_ctxtnav(req, _('Back to %(ticket)s', ticket=ticket_name), ticket_url)
+        add_ctxtnav(req, _('Back to %(ticket)s',
+                           ticket=ticket_name), ticket_url) 
 
         add_stylesheet(req, 'ticketreminder/css/ticketreminder.css')
 
@@ -137,7 +157,7 @@ class TicketReminder(Component):
         if req.method == "POST" and self._validate_add(req):
             if req.args.get('type') == 'interval':
                 time = clear_time(to_datetime(None))
-                delta = _time_intervals[req.args.get('unit')](req.args.get('interval'))
+                delta = _time_intervals[req.args.get('unit')](req.args.get('interval'))  # noqa
                 time += delta
                 time = to_utimestamp(time)
             else:
@@ -145,11 +165,17 @@ class TicketReminder(Component):
             origin = to_utimestamp(to_datetime(None))
             db = self.env.get_db_cnx()
             cursor = db.cursor()
-            cursor.execute("INSERT INTO ticketreminder (ticket, time, author, origin, reminded, description) VALUES (%s, %s, %s, %s, 0, %s)", (ticket.id, time, get_reporter_id(req, 'author'), origin, req.args.get('description')))
+            cursor.execute(
+                """INSERT INTO ticketreminder (ticket, time, author, origin, reminded,
+                                               description)
+                   VALUES (%s, %s, %s, %s, 0, %s)""",
+                (ticket.id, time, get_reporter_id(req, 'author'), origin,
+                 req.args.get('description')))
             db.commit()
 
             add_notice(req, "Reminder has been added.")
-            req.redirect(get_resource_url(self.env, ticket.resource, req.href) + "#reminders")
+            req.redirect(get_resource_url(self.env, ticket.resource,
+                                          req.href) + "#reminders")
 
         add_script(req, 'ticketreminder/js/ticketreminder.js')
 
@@ -164,7 +190,9 @@ class TicketReminder(Component):
         ty = req.args.get('type')
         if ty == 'interval':
             try:
-                req.args['interval'] = int(req.args.get('interval', '').strip())
+                req.args['interval'] = int(
+                    req.args.get('interval', '').strip())
+
                 if req.args['interval'] <= 0:
                     add_warning(req, "Nonpositive interval value.")
                     return False
@@ -200,7 +228,8 @@ class TicketReminder(Component):
         db = self.env.get_db_cnx()
         cursor = db.cursor()
 
-        cursor.execute("SELECT id, time, author, origin, description FROM ticketreminder WHERE id=%s", (reminder_id,))
+        cursor.execute("""SELECT id, time, author, origin, description
+                          FROM ticketreminder WHERE id=%s""", (reminder_id,))
         reminder = cursor.fetchone()
 
         if not reminder:
@@ -208,11 +237,13 @@ class TicketReminder(Component):
             req.redirect(get_resource_url(self.env, ticket.resource, req.href))
 
         if req.method == "POST":
-            cursor.execute("DELETE FROM ticketreminder WHERE id=%s", (reminder_id,))
+            cursor.execute("DELETE FROM ticketreminder WHERE id=%s",
+                           (reminder_id,))
             db.commit()
 
             add_notice(req, "Reminder has been deleted.")
-            req.redirect(get_resource_url(self.env, ticket.resource, req.href) + "#reminders")
+            req.redirect(get_resource_url(
+                self.env, ticket.resource, req.href) + "#reminders")
 
         # Python 2.5 compatibility
         kwargs = {
@@ -221,7 +252,8 @@ class TicketReminder(Component):
 
         data = {
             'ticket': ticket,
-            'formatted_reminder': self._format_reminder(req, ticket, *reminder, **kwargs),
+            'formatted_reminder': self._format_reminder(
+                req, ticket, *reminder, **kwargs),
         }
 
         return ("ticket_reminder_delete.html", data, None)
@@ -229,22 +261,29 @@ class TicketReminder(Component):
     # ITemplateStreamFilter methods
 
     def filter_stream(self, req, method, filename, stream, data):
-        """Return a filtered Genshi event stream, or the original unfiltered stream if no match."""
+        """
+        Return a filtered Genshi event stream, or the original
+        unfiltered stream if no match.
+        """
 
-        if filename == "ticket.html" and ('TICKET_REMINDER_VIEW' in req.perm or 'TICKET_REMINDER_MODIFY' in req.perm or 'TICKET_ADMIN' in req.perm):
+        if filename == "ticket.html" and (
+                'TICKET_REMINDER_VIEW' in req.perm or
+                'TICKET_REMINDER_MODIFY' in req.perm or
+                'TICKET_ADMIN' in req.perm):
             tags = self._reminder_tags(req, data)
             if tags:
                 ticket_resource = data['ticket'].resource
                 context = Context.from_request(req, ticket_resource)
-                attachments_data = AttachmentModule(self.env).attachment_data(context)
+                attachments_data = AttachmentModule(
+                    self.env).attachment_data(context)
 
                 add_stylesheet(req, 'ticketreminder/css/ticketreminder.css')
 
                 # Will attachments section be displayed?
-                attachments_or_ticket = Transformer('//div[@id="attachments"]') if attachments_data['can_create'] or attachments_data['attachments'] else Transformer('//div[@id="ticket"]')
-                trac_nav = Transformer('//form[@id="propertyform"]/div[@class="trac-nav"]')
+                attachments_or_ticket = Transformer('//div[@id="attachments"]') if attachments_data['can_create'] or attachments_data['attachments'] else Transformer('//div[@id="ticket"]')  # noqa
+                trac_nav = Transformer('//form[@id="propertyform"]/div[@class="trac-nav"]')  # noqa
 
-                return stream | attachments_or_ticket.after(tags) | trac_nav.append(self._reminder_trac_nav(req, data))
+                return stream | attachments_or_ticket.after(tags) | trac_nav.append(self._reminder_trac_nav(req, data))  # noqa
 
         return stream
 
@@ -377,12 +416,10 @@ class TicketReminder(Component):
 
     def ticket_created(self, ticket):
         """Called when a ticket is created."""
-
         pass
 
     def ticket_changed(self, ticket, comment, author, old_values):
         """Called when a ticket is modified."""
-
         pass
 
     def ticket_deleted(self, ticket):
@@ -430,6 +467,7 @@ class TicketReminder(Component):
         except Exception, e:
             print "Failure sending reminder notification for ticket #%s: %s" % (ticket.id, exception_to_unicode(e))
 
+
 class TicketReminderNotifyEmail(TicketNotifyEmail):
     def __init__(self, env, reminder):
         super(TicketReminderNotifyEmail, self).__init__(env)
@@ -445,7 +483,7 @@ class TicketReminderNotifyEmail(TicketNotifyEmail):
         super(TicketReminderNotifyEmail, self).notify(ticket, newticket=True)
 
     def format_subj(self, summary, newticket=True):
-        return super(TicketReminderNotifyEmail, self).format_subj("Ticket reminder", newticket)
+        return super(TicketReminderNotifyEmail, self).format_subj("Ticket reminder") # , newticket) 
 
 def clear_time(date):
     return date.replace(hour=0, minute=0, second=0, microsecond=0)
